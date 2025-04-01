@@ -6,21 +6,44 @@
         xmlns:local="clr-namespace:MoviesDataCleaning"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
-    <Grid >
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Row="0" Grid.Column="0">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock x:Name="c_FilePath" Margin="10"/>
-                <Button Content="Load Movies" Margin="10" Click="Button_Click" />
+    <TabControl>
+        <TabItem Header="General">
+            <StackPanel Grid.Row="0" Grid.Column="0">
+                <TextBlock Text="Input File Path"/>
+                <TextBox x:Name="c_FilePath" TextChanged="c_inputFile_TextChanged" />
+
+                <TextBlock Text="Output File Path"/>
+                <TextBox x:Name="c_OutFilePath" TextChanged="c_outputFile_TextChanged" />
+
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Start Line" Margin="5"/>
+                    <TextBox Width="30" Margin="5" x:Name="c_startLine" TextChanged="c_startLine_TextChanged" Text="2"/>
+
+                    <TextBlock Text="End Line" Margin="5"/>
+                    <TextBox Width="30" Margin="5" x:Name="c_endLine" TextChanged="c_endLine_TextChanged" Text="100"/>
+
+                    <TextBlock Text="Batch Size" Margin="5"/>
+                    <TextBox Width="30" Margin="5" x:Name="c_batchSize" TextChanged="c_batchSize_TextChanged" Text="10"/>
+
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Process English Movies" Margin="10" Click="Button_Click" />
+                    <!--<Button Content="Process Japanese Movies" Margin="10" Click="Button_Click_1" />-->
+                </StackPanel>
+
+                <TextBox x:Name="c_logs" IsReadOnly="True" Height="300" />
             </StackPanel>
-            <TextBox x:Name="c_logs" Height="300" />
-        </StackPanel>
+        </TabItem>
+        <TabItem Header="Settings">
+            <StackPanel>
+                <TextBlock Text="Gemini Api Key"/>
+                <TextBox x:Name="c_apiKey" TextChanged="c_apiKey_TextChanged" />
 
-    </Grid>
+            </StackPanel>
+        </TabItem>
+
+    </TabControl>
+
 </Window>
