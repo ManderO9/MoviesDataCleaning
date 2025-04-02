@@ -152,6 +152,7 @@ public partial class MainWindow : Window
                     var entries = list?.Skip(i).Take(_batchSize).ToList() ?? [];
                     GetAiTitleAsync(entries).Wait();
                     SortGenericOrTitleAsync(entries).Wait();
+                    GetPlatformAsync(entries).Wait();
                 }
                 Log("Finished data standardization");
 
@@ -170,7 +171,6 @@ public partial class MainWindow : Window
 
     private void ProcessEnglishMovies()
     {
-
         Task.Run(() =>
         {
             try
@@ -188,6 +188,7 @@ public partial class MainWindow : Window
                     var entries = list?.Skip(i).Take(_batchSize).ToList() ?? [];
                     GetAiTitleAsync(entries).Wait();
                     SortGenericOrTitleAsync(entries).Wait();
+                    GetPlatformAsync(entries).Wait();
                 }
                 Log("Finished data standardization");
 
@@ -322,10 +323,11 @@ public partial class MainWindow : Window
             row.Cell("P").SetValue(entry.ViewTime);
             row.Cell("Q").SetValue(entry.DurationViewed);
             row.Cell("R").SetValue(entry.DeviceViewed);
-            row.Cell("S").SetValue(entry.O_CleanedPlatform);
+            row.Cell("S").SetValue(entry.Ai_Platform);
             row.Cell("T").SetValue(entry.Ai_Title);
             row.Cell("U").SetValue(entry.Ai_IsGenericTermAndNotTitle ? "generic" : "title");
             row.Cell("V").SetValue(entry.O_AllocatedTitle);
+
         }
 
         workbook.SaveAs(outputPath);
@@ -618,6 +620,74 @@ public partial class MainWindow : Window
         for(int i = 0; i < entries.Count; i++)
         {
             entries[i].Ai_IsGenericTermAndNotTitle = words.ElementAt(i).Trim() == "generic";
+        }
+    }
+
+    private async Task GetPlatformAsync(List<MovieEntry> entries)
+    {
+        var prompt = $$"""
+            You are an expert movie and series and tournaments titles to platform scraping system. Your task is to take as input a movie or a series title and a list of presumed platforms that they exist in and you will return one platform that it is streamed on.
+            Make sure to return the correct value that exists on the web. If none of the platforms stream the movie return another platform name which is not part of the list that you are sure it is streamed on.
+            You will take into consideration the country that he movie has been watched on and the time it was watched for availability.
+
+            You will get as input a list of movies details and you will return a list of platforms.
+            
+            Here is movies or series list:
+            '''
+            {{string.Join(Environment.NewLine, entries.Select(entry =>
+                {
+                    return $$"""
+                        {
+                            - Title: {{entry.Title}}
+                            - Type of content: {{entry.Content}}
+                            - Country watched from: {{entry.Market}}
+                            - Presumed Platforms: {{entry.Platform}}
+                        }
+
+                        """;
+                }))}}
+            ]
+
+            Return a line in the output for each element in the input, do not miss any even if the line is repeated or empty.
+            
+            The output should not contain any other text around it. It should only contain the platforms separated by a new line. 
+            The result should have the same number of line as the number of elements provided.
+            """;
+
+
+        var client = new HttpClient();
+
+        var request = $$"""
+            {
+              "contents": [
+                {
+                  "parts": [{ "text": "{{prompt}}"}]
+                }
+              ]
+            }
+            """;
+
+        var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={_apiKey}";
+        var content = new StringContent(request, Encoding.UTF8, "application/json");
+
+        var response = await client.PostAsync(url, content);
+
+        if(response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+        {
+            MessageBox.Show("Too many requests have been sent, please try again in a bit");
+            return;
+        }
+
+        var result = JsonSerializer.Deserialize<ApiResponse>(response.Content.ReadAsStream(), options: _jsonSerializerOptions);
+
+
+        var wordsStr = result?.Candidates.FirstOrDefault()?.Content.Parts.FirstOrDefault()?.Text.Trim() ?? "";
+
+        var words = wordsStr.Split("\n");
+
+        for(int i = 0; i < entries.Count; i++)
+        {
+            entries[i].Ai_Platform = words.ElementAt(i);
         }
     }
 

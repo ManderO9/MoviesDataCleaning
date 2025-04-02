@@ -46,4 +46,5 @@ public class MovieEntry
     public string? Ai_Title { get; set; }
     public double Ai_Confidence { get; set; }
     public bool Ai_IsGenericTermAndNotTitle { get; set; }
+    public string? Ai_Platform{ get; set; }
 }
