@@ -1,4 +1,5 @@
 ﻿using ClosedXML.Excel;
+using DocumentFormat.OpenXml.Presentation;
 using System.Configuration;
 using System.Globalization;
 using System.Net.Http;
@@ -64,7 +65,7 @@ public partial class MainWindow : Window
     }
     private void Button_Click_1(object sender, RoutedEventArgs e)
     {
-        //ProcessJapaneseMovies();
+        ProcessJapaneseMovies();
     }
 
     private void c_apiKey_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
@@ -132,6 +133,40 @@ public partial class MainWindow : Window
     #endregion
 
     #region Private Methods
+    private void ProcessJapaneseMovies()
+    {
+        Task.Run(() =>
+        {
+            try
+            {
+                ClearLog();
+                Log("Reading movies from file...");
+                var list = LoadJapaneseDataFromFile(_inputPath, _startLine, _endLine);
+
+                Log("Read movies successfully");
+
+                Log("Sending api requests to ai agent for data standardization");
+
+                for(int i = 0; i < list.Count; i += _batchSize)
+                {
+                    var entries = list?.Skip(i).Take(_batchSize).ToList() ?? [];
+                    GetAiTitleAsync(entries).Wait();
+                    SortGenericOrTitleAsync(entries).Wait();
+                }
+                Log("Finished data standardization");
+
+                Log("Saving to output file");
+                WriteDataToFile(_outputPath, _startLine, _endLine, list);
+                Log("Finished saving to output file");
+            }
+            catch(Exception ex)
+            {
+                MessageBox.Show("Error: " + ex.Message);
+                Log("Error: " + ex.Message);
+            }
+        });
+
+    }
 
     private void ProcessEnglishMovies()
     {
@@ -294,6 +329,44 @@ public partial class MainWindow : Window
         }
 
         workbook.SaveAs(outputPath);
+    }
+    private List<MovieEntry> LoadJapaneseDataFromFile(string filePath, int startLine, int endLine)
+    {
+        var list = new List<MovieEntry>();
+
+        using var workbook = new XLWorkbook(filePath);
+
+        var worksheet = workbook.Worksheets.LastOrDefault();
+
+        if(worksheet is null)
+        {
+            MessageBox.Show("ERROR: no worksheet found in file");
+            return [];
+        }
+
+        foreach(var row in worksheet.Rows(startLine, endLine))
+        {
+            var entry = new MovieEntry()
+            {
+                Market = row.Cell("A").GetStr(),
+                PanelisId = row.Cell("B").GetStr(),
+                ViewTime = row.Cell("D").GetStr(),
+                Title = row.Cell("E").GetStr(),
+                Season = row.Cell("F").GetStr(),
+                EpisodeName = row.Cell("G").GetStr(),
+                Platform = row.Cell("H").GetStr(),
+                DurationViewed = row.Cell("I").GetStr(),
+                DeviceViewed = row.Cell("J").GetStr(),
+            };
+
+            if(row.Cell("C").Value.IsBlank == false)
+            {
+                if(DateTime.TryParseExact(row.Cell("C").GetStr(), "dd/MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var date))
+                    entry.Date = date;
+            }
+            list.Add(entry);
+        }
+        return list;
     }
 
     private List<MovieEntry> LoadDataFromFile(string filePath, int startLine, int endLine)
